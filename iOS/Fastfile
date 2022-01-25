@@ -1,0 +1,61 @@
+skip_docs
+require 'Pony'
+
+platform :ios do
+	
+	desc "load ios specific env"
+	before_all do
+		Dotenv.load ".ios.env"
+		if is_ci
+			puts 'runing in ci/cd pipeline'
+		else
+			puts 'running for local system and loading secret env'
+			Dotenv.overload('.env', '.secret.env')
+		end
+	end
+
+	desc "Sync signing"
+	private_lane :signing do
+		setup_ci if is_ci
+		# create CERT_FILE_PATH,CERT_CERTIFICATE_ID
+		cert #get_certificates 
+		echo lane_context[SharedValues::CERT_FILE_PATH]
+		echo lane_context[SharedValues::CERT_CERTIFICATE_ID]
+		# sigh
+		#update_code_signing_settings(profile_name: mapping['MATCH_APP_IDENTIFIER'])
+	end
+
+	desc "Build ios app"
+	lane :build do
+		signing if is_ci
+		gym #build_ios_app
+	end
+	
+	desc "Upload ipa to diawi"
+	lane :upload do
+		build
+		ensure_env_vars(env_vars: ['DIAWI_TOKEN']) if is_ci
+		ENV['DIAWI_TOKEN'] = prompt(text: 'Enter DIAWI TOKEN: ') if not(ENV['DIAWI_TOKEN'])
+		diawi(file: lane_context[SharedValues::IPA_OUTPUT_PATH])
+		sh("rm","-R","./../build/ios")
+		share
+	end
+
+	desc "mail"
+	private_lane :share  do
+		link = lane_context[SharedValues::UPLOADED_FILE_LINK_TO_DIAWI]
+		href = '<a href="' + link + '">install</a>'
+		body = "<h1>Build (develop) successfully uploaded please install by click "+href + "</h1>"
+		Pony.mail(:to => ENV['SEND_E_MAIL_TO'],
+		:from => ENV['SEND_E_MAIL_USERNAME'], :subject => ENV['SEND_E_MAIL_SUBJECT'], :html_body => body,
+		:via => :smtp, :via_options => {
+					:address        => 'smtp.gmail.com',
+					:port           => '587',
+					:user_name      => ENV['SEND_E_MAIL_USERNAME'],
+					:password       => ENV['SEND_E_MAIL_PASSWORD'],
+					:authentication => :plain,
+					:domain         => "gmail.com"
+				})
+	end
+end
+
