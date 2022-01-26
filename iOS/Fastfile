@@ -43,19 +43,50 @@ platform :ios do
 
 	desc "mail"
 	private_lane :share  do
-		link = lane_context[SharedValues::UPLOADED_FILE_LINK_TO_DIAWI]
-		href = '<a href="' + link + '">install</a>'
-		body = "<h1>Build (develop) successfully uploaded please install by click "+href + "</h1>"
-		Pony.mail(:to => ENV['SEND_E_MAIL_TO'],
-		:from => ENV['SEND_E_MAIL_USERNAME'], :subject => ENV['SEND_E_MAIL_SUBJECT'], :html_body => body,
-		:via => :smtp, :via_options => {
-					:address        => 'smtp.gmail.com',
-					:port           => '587',
-					:user_name      => ENV['SEND_E_MAIL_USERNAME'],
-					:password       => ENV['SEND_E_MAIL_PASSWORD'],
-					:authentication => :plain,
-					:domain         => "gmail.com"
-				})
+		download_url = lane_context[SharedValues::UPLOADED_FILE_LINK_TO_DIAWI]
+		
+		from = ENV['SEND_E_MAIL_USERNAME']
+		to = ENV['SEND_E_MAIL_TO']
+		subject = ENV['SEND_E_MAIL_SUBJECT']
+		password = ENV['SEND_E_MAIL_PASSWORD']
+		image_url = ENV['SEND_E_MAIL_APP_ICON_URL']
+		title = ENV['SEND_E_MAIL_APP_TITLE']
+		sub_title = ENV['SEND_E_MAIL_APP_SUB_TITLE']
+		primary_color = ENV['SEND_E_MAIL_APP_PRIMARY_COLOR']
+		version = "build #{get_build_number}, version #{get_version_number}"
+
+		body = html_mail image_url,title,sub_title,version,download_url,primary_color
+		send_mail from,to,subject,body,password
 	end
 end
-
+	
+def send_mail(from,to,sub,content,password)
+	Pony.mail(:to =>to,	:from => from, :subject => sub,:headers => { 'Content-Type' => 'text/html; charset=UTF-8' },:body => content,:via => :smtp, :via_options => {
+			:address        => 'smtp.gmail.com',
+			:port           => '587',
+			:user_name      => from,
+			:password       => password,
+			:authentication => :plain,
+			:domain         => "gmail.com"
+	})
+end
+	
+def html_mail(image_url,title,sub_title,version,download_url,primary_color)
+	
+	return 	"<div style='background: #e9f0f4; padding: 80px;'>
+		<div style='margin: auto; height: auto;width: 400px; background: #fff;border-radius: 16px; padding-bottom:20px; '>
+				<img style='width:90%;height: auto; border-style: none;margin: 24px; max-height: 350px;'
+				src='#{image_url}' />
+				<img style='width: 100%;' src='https://drive.google.com/uc?export=view&id=1bHYj51poOV3mkwywwB4_9dqTNitZlgYo' width='100%'>
+				<table style='padding:16px; padding-bottom:8px;'  width= '100%;margin:0;border-collapse: collapse; ' cellspacing= '0' cellpadding= '0'>
+					<tbody>
+					<tr><td><span style='font-size: 1.75rem;font-weight: 800;line-height: 2.25rem;'>#{title}</span></td></tr>
+					<tr><td><span style='font-size: 1.25rem;line-height: 2rem;'>#{sub_title}</span></td></tr>
+					<tr><td><span style='font-size: .8rem;line-height: 1rem;'>#{version}</span></td></tr>
+					<tr style='text-align:center;'><td><a href='#{download_url}'style='color:#{primary_color}' >Click here to download</a></td></tr>
+					</tbody>
+				</table>	
+			</div>    
+	</div>"
+end
+	

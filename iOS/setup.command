@@ -10,17 +10,16 @@ gem install bundler
 printf "\n\n"
 echo 'creating Gemfile'
 touch Gemfile
-
 {
-echo 'source "https://rubygems.org"'
-echo ''
-echo 'gem "fastlane"'
-echo 'gem "pony"'
+    echo 'source "https://rubygems.org"'
+    echo ''
+    echo 'gem "fastlane"'
+    echo 'gem "pony"'
 } >> Gemfile
 
 printf "\n\n"
 echo 'installing fastlane'
-bundle update
+bundler update
 
 
 printf "\n\n"
@@ -46,7 +45,7 @@ cat .ios.env >> fastlane/.ios.env
 cat Fastfile >> fastlane/Fastfile
 
 printf "\n\n"
-echo 'installing plugins'
+echo 'installing plugin diawi'
 fastlane add_plugin diawi
 
 printf "\n\n"
