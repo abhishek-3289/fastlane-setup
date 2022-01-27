@@ -55,7 +55,7 @@ touch fastlane_ios_upload.command
 
 {
     echo "#!/bin/sh" 
-    printf 'path=$''"(dirname "$''0")"'
+    printf 'path="$''(dirname "$''0")"'
     echo ''
     printf 'cd "$''path" || exit'
     echo ''
@@ -64,7 +64,7 @@ touch fastlane_ios_upload.command
 
 {
     echo "#!/bin/sh" 
-    printf 'path=$''"(dirname "$''0")"'
+    printf 'path="$''(dirname "$''0")"'
     echo ''
     printf 'cd "$''path" || exit'
     echo ''
