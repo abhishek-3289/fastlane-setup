@@ -1,0 +1,118 @@
+fastlane_require 'nokogiri'
+fastlane_require 'google_drive'
+fastlane_require 'Pony'
+
+default_platform(:android)
+skip_docs
+
+platform :android do
+
+    desc "load andorid specific env"
+    before_all do
+        Dotenv.overload('.env','.secret.env') if not(is_ci)
+    end
+
+  desc "Create clean build"
+  lane :build do
+    puts "Uploading your file to google drive please wait…"
+    sh("chmod +x ./../gradlew")
+    build_android_app(task: "clean assemble")
+    puts "path: " + lane_context[SharedValues::GRADLE_APK_OUTPUT_PATH]
+  end
+   
+  desc "Upload apk to Google Drive"
+    lane :upload do
+        build
+    puts "Uploading your file to google drive please wait..."
+        upload_file = lane_context[SharedValues::GRADLE_APK_OUTPUT_PATH]
+    session = GoogleDrive::Session.from_config("config.json")
+    folder = session.collection_by_id(ENV['GOOGLE_FOLDER_ID'])
+    file = folder.upload_from_file(upload_file, file_name, convert: false)
+    file_info file
+    puts "file uploaded successfully, Thanks for waiting!"
+    share(UPLOADED_FILE_LINK:file.human_url)
+    end
+    
+  desc "Sharing link viva: gmail"
+    private_lane :share  do |values|
+    puts "Mailing, please wait..."
+        download_url = values[:UPLOADED_FILE_LINK]
+        
+        from = ENV['SEND_E_MAIL_USERNAME']
+        to = ENV['SEND_E_MAIL_TO']
+        cc = ENV['SEND_E_MAIL_CC']
+        subject = ENV['SEND_E_MAIL_SUBJECT']
+        password = ENV['SEND_E_MAIL_PASSWORD']
+        image_url = ENV['SEND_E_MAIL_APP_ICON_URL']
+        title = ENV['SEND_E_MAIL_APP_TITLE']
+        sub_title = ENV['SEND_E_MAIL_APP_SUB_TITLE']
+        primary_color = ENV['SEND_E_MAIL_APP_PRIMARY_COLOR']
+        version = "build version #{ENV['FL_GRADLE_BUILD_VERSION']}"
+        pointers = prompt(text: 'POINTERS (comma separated values): ')
+        body = html_mail image_url,title,sub_title,version,download_url,primary_color,pointers
+        send_mail from,to,cc,subject,body,password
+    puts "Process Compeleted, Thanks for using!"
+  end
+
+end
+
+def file_name
+  time = Time.now.strftime("%B,%d %Y-%I:%M:%S-%P")
+  title = 'app-' + ENV['FL_GRADLE_FLAVOR'] + '-'
+  title = title + ENV['FL_GRADLE_BUILD_TYPE'] +'_'
+  title = title + ENV['APPLICATION_NAME'] + '-'
+  title = title.gsub(" ", "_").downcase
+  return title + time + "_.apk"
+end
+
+def file_info(file)
+  puts "resource_type: "+file.resource_type
+  puts "resource_id: "+file.resource_id
+  puts "human_url: "+file.human_url
+  puts "inspect: "+file.inspect
+end
+
+def send_mail(from,to,cc,sub,content,password)
+    Pony.mail(:from => from, :to =>to,:cc => cc,:subject => sub,:headers => { 'Content-Type' => 'text/html; charset=UTF-8' },:body => content,:via => :smtp, :via_options => {
+            :address        => 'smtp.gmail.com',
+            :port           => '587',
+            :user_name      => from,
+            :password       => password,
+            :authentication => :plain,
+            :domain         => "gmail.com"
+    })
+end
+    
+def html_mail(image_url,title,sub_title,version,download_url,primary_color,pointers)
+    array = pointers.split(",")
+    pointers = "" 
+    if array.length > 0
+        y = ""
+        array.each { |x| y = "#{y} \n <li>#{x}</li>"}
+        pointers = "<h4>POINTERS:</h4> \n <ol>#{y}\n</ol><br>"
+    end
+    
+  app_env = "<h4>ENVIRONMENT = " + ENV['FL_GRADLE_FLAVOR'] +" ("+ENV['FL_GRADLE_BUILD_TYPE']+")</h4>"  
+  app_env = app_env.upcase
+
+    return  "<div style='background: #e9f0f4; padding: 80px;'>
+    #{app_env}
+        #{pointers}         
+        <div style='margin: auto; height: auto;width: 400px; background: #fff;border-radius: 16px; padding-bottom:20px; '>
+                <img style='width:90%;height: auto; border-style: none;margin: 24px; max-height: 350px;'
+                src='#{image_url}' />
+                <img style='width: 100%;' src='https://drive.google.com/uc?export=view&id=1bHYj51poOV3mkwywwB4_9dqTNitZlgYo' width='100%'>
+                <table style='padding:16px; padding-bottom:8px;'  width= '100%;margin:0;border-collapse: collapse; ' cellspacing= '0' cellpadding= '0'>
+                    <tbody>
+                    <tr><td><span style='font-size: 1.75rem;font-weight: 800;line-height: 2.25rem;'>#{title}</span></td></tr>
+                    <tr><td><span style='font-size: 1.25rem;line-height: 2rem;'>#{sub_title}</span></td></tr>
+                    <tr><td><span style='font-size: .8rem;line-height: 1rem;'>#{version}</span></td></tr>
+                    <tr style='text-align:center;'><td><a href='#{download_url}'style='color:#{primary_color}' >Click here to download</a></td></tr>
+                    </tbody>
+                </table>    
+            </div>    
+    </div>"
+end
+    
+      
+    
