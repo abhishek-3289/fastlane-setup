@@ -18,7 +18,7 @@ elif ! grep -q "pony" "Gemfile"; then
     printf '\ngem "pony"'  >> Gemfile
 fi
 
-if ! [ -d "$DIR" ]; then mkdir fastlane; fi
+if ! [ -d "fastlane" ]; then mkdir fastlane; fi
 if [ -f ".env" ]; then cat .env >> fastlane/.env; fi
 if [ -f ".ios.env" ]; then cat .ios.env >> fastlane/.ios.env; fi
 if [ -f "Fastfile" ]; then cat Fastfile >> fastlane/Fastfile; fi
