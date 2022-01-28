@@ -1,82 +1,69 @@
 #!/bin/sh
 path="$(dirname "$0")"
-echo "$path"
 cd "$path" || exit
 
-printf "\n\n"
-echo 'installing Bundler'
+printf "\n\n installing Bundler"
 gem install bundler
 
-printf "\n\n"
-echo 'creating Gemfile'
-touch Gemfile
-{
-    echo 'source "https://rubygems.org"'
-    echo ''
-    echo 'gem "fastlane"'
-    echo 'gem "pony"'
-} >> Gemfile
+if ! [ -f "Gemfile" ]; then
+    printf "\n\n creating Gemfile"
+    {
+        echo 'source "https://rubygems.org"'
+        printf '\ngem "fastlane"'
+        printf '\ngem "pony"'
+    } >> Gemfile
+elif ! grep -q "fastlane" "Gemfile"; then
+    printf '\ngem "fastlane"'  >> Gemfile
+elif ! grep -q "pony" "Gemfile"; then
+    printf '\ngem "pony"'  >> Gemfile
+fi
 
-printf "\n\n"
-echo 'installing fastlane'
-bundler update
+if ! [ -d "$DIR" ]; then mkdir fastlane; fi
+if [ -f ".env" ]; then cat .env >> fastlane/.env; fi
+if [ -f ".ios.env" ]; then cat .ios.env >> fastlane/.ios.env; fi
+if [ -f "Fastfile" ]; then cat Fastfile >> fastlane/Fastfile; fi
+if ! [ -f "fastlane/.secret.env" ]; then
+    {
+        echo 'APPLE_ID=your apple id'
+        echo 'DIAWI_TOKEN=token'
+        echo 'FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD=password'
+        echo 'SEND_E_MAIL_USERNAME=mail address'
+        echo 'SEND_E_MAIL_PASSWORD=password'
+
+    } >> fastlane/.secret.env
+fi
+
+if ! [ -f "fastlane/Pluginfile" ]; then fastlane add_plugin diawi; 
+elif ! grep -q "diawi" "fastlane/Pluginfile"; then fastlane add_plugin diawi; fi
+
+if ! [ -f "fastlane_ios_build.command" ]; then
+    {
+        echo "#!/bin/sh" 
+        printf 'path="$''(dirname "$''0")"\n'
+        printf 'cd "$''path" || exit'
+        printf '\nbundle exec fastlane ios build'
+    }>>fastlane_ios_build.command
+
+    chmod u+x ./fastlane_ios_build.command 
+fi
+
+if ! [ -f "fastlane_ios_upload.command" ]; then
+    {
+        echo "#!/bin/sh" 
+        printf 'path="$''(dirname "$''0")"\n'
+        printf 'cd "$''path" || exit'
+        printf '\nbundle exec fastlane ios upload'
+    }>>fastlane_ios_upload.command
+    
+    chmod u+x ./fastlane_ios_upload.command 
+fi
 
 
-printf "\n\n"
-echo 'fastlane env setup'
-mkdir fastlane
-touch fastlane/.env
-touch fastlane/.ios.env
-touch fastlane/.secret.env
-touch fastlane/Fastfile
-touch fastlane/Pluginfile
+if [ -f ".env" ]; then rm .env; fi
+if [ -f "Fastfile" ]; then rm Fastfile; fi
+if [ -f ".ios.env" ]; then rm .ios.env; fi
 
-{
-    echo 'APPLE_ID=your apple id'
-    echo 'DIAWI_TOKEN=token'
-    echo 'FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD=password'
-    echo 'SEND_E_MAIL_USERNAME=mail address'
-    echo 'SEND_E_MAIL_PASSWORD=password'
+echo 'updating bundle'
+bundle update
 
-} >> fastlane/.secret.env
-
-cat .env >> fastlane/.env
-cat .ios.env >> fastlane/.ios.env
-cat Fastfile >> fastlane/Fastfile
-
-printf "\n\n"
-echo 'installing plugin diawi'
-fastlane add_plugin diawi
-
-printf "\n\n"
-echo 'creating command files for lane'
-touch fastlane_ios_build.command
-touch fastlane_ios_upload.command
-
-{
-    echo "#!/bin/sh" 
-    printf 'path="$''(dirname "$''0")"'
-    echo ''
-    printf 'cd "$''path" || exit'
-    echo ''
-    echo 'bundle exec fastlane ios build'
-}>>fastlane_ios_build.command
-
-{
-    echo "#!/bin/sh" 
-    printf 'path="$''(dirname "$''0")"'
-    echo ''
-    printf 'cd "$''path" || exit'
-    echo ''
-    echo 'bundle exec fastlane ios upload'
-}>>fastlane_ios_upload.command
-
-chmod u+x ./fastlane_ios_build.command 
-chmod u+x ./fastlane_ios_upload.command 
-
-printf "\n\n"
-echo 'clean up'
-
-rm .env 
-rm Fastfile
-rm .ios.env
+exit 0;
